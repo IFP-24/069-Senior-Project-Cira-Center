@@ -1,0 +1,195 @@
+const block = type => ({ kind: 'block', type })
+
+const gameCategory = (name, contents) => ({ kind: 'category', name, colour: '#7e57c2', contents })
+
+export const toolboxJson = {
+    kind: 'categoryToolbox',
+    contents: [
+        {
+            kind: 'category',
+            name: 'Game',
+            colour: '#7e57c2',
+            contents: [
+                gameCategory('Sprites & Groups', [
+                    block('game_create_sprite'),
+                    block('game_spawn_sprite'),
+                    block('game_clone_sprite'),
+                    block('game_delete_sprite'),
+                    block('game_sprite_exists'),
+                    block('game_add_to_group'),
+                    block('game_remove_from_group'),
+                    block('game_delete_group'),
+                    block('game_group_count'),
+                    block('game_touching_group'),
+                    block('game_for_each_in_group'),
+                    block('game_random_choice_group'),
+                ]),
+                gameCategory('Movement & Physics', [
+                    block('game_get_x'),
+                    block('game_get_y'),
+                    block('game_set_xy'),
+                    block('game_move_by'),
+                    block('game_move_toward'),
+                    block('game_distance_to'),
+                    block('game_change_x'),
+                    block('game_change_y'),
+                    block('game_set_velocity'),
+                    block('game_change_velocity_x'),
+                    block('game_change_velocity_y'),
+                    block('game_get_velocity_x'),
+                    block('game_get_velocity_y'),
+                    block('game_set_speed'),
+                    block('game_change_speed'),
+                    block('game_get_speed'),
+                    block('game_set_acceleration'),
+                    block('game_set_gravity'),
+                    block('game_set_friction'),
+                    block('game_set_jump_power'),
+                    block('game_jump'),
+                    block('game_keep_in_bounds'),
+                    block('game_get_bounds'),
+                    block('game_respawn_safe'),
+                    block('game_touching_edge'),
+                ]),
+                gameCategory('Rendering & Animation', [
+                    block('game_set_pixel'),
+                    block('game_set_color'),
+                    block('game_set_size'),
+                    block('game_show_sprite'),
+                    block('game_hide_sprite'),
+                    block('game_set_opacity'),
+                    block('game_set_rotation'),
+                    block('game_set_scale'),
+                    block('game_set_z_index'),
+                    block('game_set_image'),
+                    block('game_set_spritesheet'),
+                    block('game_define_animation'),
+                    block('game_play_animation'),
+                    block('game_stop_animation'),
+                ]),
+                gameCategory('Input & Events', [
+                    block('game_on_tick'),
+                    block('game_every_n_ticks'),
+                    block('game_after_n_ticks'),
+                    block('game_on_key'),
+                    block('game_on_key_up'),
+                    block('game_is_key_pressed'),
+                    block('game_on_mouse_click'),
+                    block('game_mouse_x'),
+                    block('game_mouse_y'),
+                    block('game_mouse_down'),
+                    block('game_on_touch_start'),
+                    block('game_touch_x'),
+                    block('game_touch_y'),
+                    block('game_touch_down'),
+                    block('game_gamepad_button'),
+                    block('game_gamepad_axis'),
+                ]),
+                gameCategory('Collision & Scenes', [
+                    block('game_set_collision_layer'),
+                    block('game_set_collision_mask'),
+                    block('game_set_collision_response'),
+                    block('game_colliding'),
+                    block('game_touching'),
+                    block('game_on_collide'),
+                    block('game_on_collide_group'),
+                    block('game_on_collide_stay'),
+                    block('game_on_collide_exit'),
+                    block('game_on_scene'),
+                    block('game_load_scene'),
+                    block('game_restart_scene'),
+                    block('game_pause'),
+                    block('game_resume'),
+                    block('game_is_paused'),
+                    block('game_get_scene'),
+                ]),
+                gameCategory('HUD, Score & Game State', [
+                    block('game_set_score'),
+                    block('game_change_score'),
+                    block('game_get_score'),
+                    block('game_set_stat'),
+                    block('game_get_stat'),
+                    block('game_set_hud_text'),
+                    block('game_set_lives'),
+                    block('game_change_lives'),
+                    block('game_get_lives'),
+                    block('game_set_timer'),
+                    block('game_change_timer'),
+                    block('game_get_timer'),
+                    block('game_set_health'),
+                    block('game_change_health'),
+                    block('game_get_health'),
+                    block('game_set_score_overlay_visible'),
+                    block('game_set_status_overlay_visible'),
+                    block('game_set_hud_metric_visible'),
+                    block('game_set_hud_metric_label'),
+                    block('game_set_hud_order'),
+                    block('game_set_hud_inline_overlay'),
+                    block('game_set_game_over_text'),
+                    block('game_set_win_text'),
+                    block('game_game_over'),
+                    block('game_win_game'),
+                    block('game_is_game_over'),
+                    block('game_is_game_won'),
+                ]),
+                gameCategory('Random & Utilities', [
+                    block('game_random_int'),
+                    block('game_chance'),
+                    block('game_random_x'),
+                    block('game_random_y'),
+                    block('game_set_random_seed'),
+                ]),
+            ],
+        },
+        {
+            kind: 'category', name: 'Control', colour: '#ffab40',
+            contents: [
+                {
+                    kind: 'block', type: 'controls_repeat_ext',
+                    inputs: { TIMES: { shadow: { type: 'math_number', fields: { NUM: 10 } } } }
+                },
+                { kind: 'block', type: 'controls_whileUntil' },
+                {
+                    kind: 'block', type: 'controls_for',
+                    inputs: {
+                        FROM: { shadow: { type: 'math_number', fields: { NUM: 1 } } },
+                        TO: { shadow: { type: 'math_number', fields: { NUM: 10 } } },
+                        BY: { shadow: { type: 'math_number', fields: { NUM: 1 } } }
+                    }
+                },
+                { kind: 'block', type: 'controls_forEach' },
+                { kind: 'block', type: 'controls_flow_statements' },
+                { kind: 'block', type: 'controls_if' }
+            ]
+        },
+        {
+            kind: 'category', name: 'Math', colour: '#4db6ac',
+            contents: [
+                { kind: 'block', type: 'math_number' },
+                { kind: 'block', type: 'math_arithmetic' }
+            ]
+        },
+        {
+            kind: 'category', name: 'Logic', colour: '#64b5f6',
+            contents: [
+                { kind: 'block', type: 'logic_compare' },
+                { kind: 'block', type: 'logic_boolean' },
+                { kind: 'block', type: 'logic_ternary' },
+            ]
+        },
+        {
+            kind: 'category', name: 'Lists', colour: '#8bc34a',
+            contents: [
+                { kind: 'block', type: 'lists_create_empty' },
+                { kind: 'block', type: 'lists_create_with' },
+                { kind: 'block', type: 'lists_length' },
+                { kind: 'block', type: 'lists_isEmpty' },
+                { kind: 'block', type: 'lists_getIndex' },
+                { kind: 'block', type: 'lists_setIndex' },
+            ]
+        },
+        { kind: 'sep' },
+        { kind: 'category', name: 'Variables', custom: 'MY_VARIABLES', colour: '#f06292' },
+        { kind: 'category', name: 'Functions', custom: 'PROCEDURE', colour: '#ef6c00' }
+    ]
+}

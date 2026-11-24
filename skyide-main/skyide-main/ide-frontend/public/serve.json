@@ -1,0 +1,89 @@
+{
+    "rewrites": [
+        {
+            "source": "/editor",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/editor/**",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/games",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/games/**",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/help",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/help/**",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/login",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/signup",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/profile",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/aboutus",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/aboutus/**",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/contactus",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/contactus/**",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/profile/**",
+            "destination": "/index.html"
+        }
+    ],
+    "headers": [
+        {
+            "source": "**/*.html",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-cache"
+                }
+            ]
+        },
+        {
+            "source": "assets/**",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=31536000, immutable"
+                }
+            ]
+        },
+        {
+            "source": "lib/**",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=31536000, immutable"
+                }
+            ]
+        }
+    ]
+}

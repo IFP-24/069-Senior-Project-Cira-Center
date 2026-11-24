@@ -1,0 +1,92 @@
+name: SkyIDE CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22.21.0
+
+      - name: Cache Node modules
+        uses: actions/cache@v3
+        with:
+          path: ide-frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('ide-frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install frontend dependencies
+        working-directory: ide-frontend
+        run: npm install
+
+      - name: Check frontend formatting
+        working-directory: ide-frontend
+        run: npm run format:check
+
+      - name: Lint frontend
+        working-directory: ide-frontend
+        run: npm run lint
+
+      - name: Test frontend
+        working-directory: ide-frontend
+        run: npm run test:run
+
+      - name: Build frontend
+        working-directory: ide-frontend
+        run: npm run build
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11.12
+
+      - name: Cache Python venv
+        uses: actions/cache@v3
+        with:
+          path: api-backend/venv
+          key: ${{ runner.os }}-python-${{ hashFiles('api-backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-python-
+
+      - name: Install backend dependencies
+        working-directory: api-backend
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint backend
+        working-directory: api-backend
+        run: |
+          source venv/bin/activate
+          flake8 . --max-line-length=120 --exclude venv,dist,__pycache__
+          black --check .
+
+      - name: Test backend
+        working-directory: api-backend
+        run: |
+          source venv/bin/activate
+          python -m pytest --maxfail=1 --disable-warnings -q
+

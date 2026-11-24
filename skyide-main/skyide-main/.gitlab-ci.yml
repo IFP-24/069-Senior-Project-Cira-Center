@@ -1,0 +1,186 @@
+# SkyIDE CI — validate (lint/test/build/compose) → build+push images → deploy to ct03.
+#
+# Runs on merge requests and on main. Backend tests mock the DB (FakeConnection), so no
+# Postgres service is needed for the test stage.
+#
+# Pipeline shape:
+#   test    — frontend lint/test/build, backend lint/test, compose sanity, secret scan (MR + main)
+#   build   — build + push frontend/backend images to registry.westphal.drexel.edu (main only)
+#   deploy  — SSH-deliver compose + .env to aw-svl-ct03, docker compose up -d, health-poll +
+#             rollback (main only, MANUAL — a merge must never auto-touch production)
+#
+# Required CI/CD variables (Settings → CI/CD → Variables; mask the secrets):
+#   DEPLOY_HOST          aw-svl-ct03 address (192.168.3.132)
+#   DEPLOY_KNOWN_HOSTS   ssh-keyscan output for DEPLOY_HOST
+#   DEPLOY_SSH_KEY_B64   base64 of the awdeploy private key (file/var, masked)
+#   DB_PASSWORD          Postgres password (masked)
+#   SECRET_KEY           Flask SECRET_KEY / JWT signing key (masked)
+#   RESEND_API_KEY       Resend transactional-email key (masked; optional — contact-us only)
+#   (CI_REGISTRY*, CI_REGISTRY_IMAGE, CI_COMMIT_SHORT_SHA are GitLab built-ins.)
+
+include:
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+stages:
+  - test
+  - build
+  - deploy
+
+# One pipeline per change: run on MRs and on main only (no redundant branch pipelines).
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# Run jobs on MRs and on main (mirrors the GitHub Actions triggers).
+.rules_mr_main:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# GitLab secret scanning (template defaults into the `test` stage).
+secret_detection:
+  allow_failure: false
+
+# Frontend: prettier check, eslint, vitest, production build.
+frontend:
+  extends: .rules_mr_main
+  stage: test
+  image: node:22-alpine
+  before_script:
+    - cd ide-frontend
+    - npm ci
+  script:
+    - npm run format:check
+    - npm run lint
+    - npm run test:run
+    - npm run build
+
+# Backend: flake8, black --check, pytest (DB mocked in tests). Lint/test tools are
+# already pinned in requirements.txt.
+backend:
+  extends: .rules_mr_main
+  stage: test
+  image: python:3.11-slim
+  before_script:
+    - cd api-backend
+    - pip install --no-cache-dir -r requirements.txt
+  script:
+    - flake8 . --max-line-length=120 --exclude venv,dist,__pycache__
+    - black --check .
+    # `python -m pytest` (not bare `pytest`) so cwd lands on sys.path — the app is a flat
+    # layout (routes/, app.py) with no pytest pythonpath config, so bare pytest can't import it.
+    - python -m pytest --maxfail=1 --disable-warnings -q
+
+# Compose file sanity (schema + ${VAR} interpolation). `config` needs no daemon.
+compose-validate:
+  extends: .rules_mr_main
+  stage: test
+  image: docker:27-cli
+  script:
+    - docker compose version
+    - cp .env.example .env
+    - docker compose -f docker-compose.yml config --quiet
+    # Validate the production artifact too. external `traefik_gateway` need not exist for
+    # `config`; ${IMAGE_TAG:-latest} and ${RESEND_API_KEY:-} resolve to defaults.
+    - docker compose -f docker-compose.prod.yml config --quiet
+    - echo "compose config valid"
+
+# Build + push images to the project registry. Frontend is baked with a SAME-ORIGIN API
+# base so the SPA calls /api (nginx proxies it) — identical to the local stack.
+.build_base:
+  stage: build
+  image: docker:27-cli
+  services:
+    - docker:27-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+build-frontend:
+  extends: .build_base
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/frontend
+  script:
+    - docker build
+        --build-arg VITE_API_BASE_URL=/api
+        --build-arg VITE_API_V1_BASE_URL=/api/v1
+        -t "$IMAGE:$CI_COMMIT_SHORT_SHA" -t "$IMAGE:latest" ide-frontend/
+    - docker push "$IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$IMAGE:latest"
+
+build-backend:
+  extends: .build_base
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE/backend
+  script:
+    - docker build -t "$IMAGE:$CI_COMMIT_SHORT_SHA" -t "$IMAGE:latest" api-backend/
+    - docker push "$IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$IMAGE:latest"
+
+# Deploy to aw-svl-ct03 as awdeploy. Delivers the prod compose + setup.sql, generates
+# .env on the host from CI variables (secrets never committed, never hand-dropped), pins
+# IMAGE_TAG to this commit so it pulls exactly the images built above, then up -d with a
+# health-poll + rollback. MANUAL: production changes require an explicit click.
+# Pattern mirrors docker/aw-svl-ct04/agentic-platform deploy.
+deploy:
+  stage: deploy
+  image: alpine:3.21
+  variables:
+    DEPLOY_PATH: /opt/docker/skyide
+    HEALTH_CHECK_TIMEOUT: "180"
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$DEPLOY_SSH_KEY_B64" | base64 -d | ssh-add -
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+  script:
+    # Save current compose for rollback (first deploy: no-op).
+    - ssh awdeploy@${DEPLOY_HOST} "cp ${DEPLOY_PATH}/docker-compose.prod.yml ${DEPLOY_PATH}/docker-compose.prod.yml.rollback 2>/dev/null || true"
+    # Deliver app files.
+    - ssh awdeploy@${DEPLOY_HOST} "mkdir -p ${DEPLOY_PATH}"
+    - scp docker-compose.prod.yml awdeploy@${DEPLOY_HOST}:${DEPLOY_PATH}/
+    - scp setup.sql awdeploy@${DEPLOY_HOST}:${DEPLOY_PATH}/
+    # Generate .env on the host from CI variables. printf builds the body on the RUNNER
+    # (literal %s args, never re-parsed by a shell), piped via ssh stdin into a single
+    # umask-077 redirect so .env is mode 0600 at creation and secrets never appear in a
+    # remote shell argument. IMAGE_TAG pins prod to the images built in THIS pipeline.
+    - |
+      printf 'DB_PASSWORD=%s\nSECRET_KEY=%s\nRESEND_API_KEY=%s\nIMAGE_TAG=%s\n' \
+        "$DB_PASSWORD" "$SECRET_KEY" "$RESEND_API_KEY" "$CI_COMMIT_SHORT_SHA" \
+        | ssh awdeploy@${DEPLOY_HOST} "umask 077 && cat > ${DEPLOY_PATH}/.env"
+    # Authenticate the host's docker to the project registry. ct03's other apps pull
+    # public images, so this is its first private pull and awdeploy has no registry
+    # login. Use the CI job token (read access to THIS project's own registry; expires
+    # with the job) — same creds the build stage uses. Piped via ssh stdin so the token
+    # never lands in a remote process argument.
+    - echo "$CI_REGISTRY_PASSWORD" | ssh awdeploy@${DEPLOY_HOST} "docker login -u '$CI_REGISTRY_USER' --password-stdin $CI_REGISTRY"
+    # Pull the freshly-built images and (re)create.
+    - ssh awdeploy@${DEPLOY_HOST} "cd ${DEPLOY_PATH} && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
+    # Health verification — convergence polling on container health status.
+    - |
+      echo "Verifying deployment health (timeout ${HEALTH_CHECK_TIMEOUT}s)..."
+      if ! ssh awdeploy@${DEPLOY_HOST} "cd ${DEPLOY_PATH} && \
+        timeout ${HEALTH_CHECK_TIMEOUT} sh -c 'while true; do
+          PS=\$(docker compose -f docker-compose.prod.yml ps --format json 2>/dev/null)
+          if echo \"\$PS\" | grep -q \"unhealthy\"; then echo \"Unhealthy container detected\"; docker compose -f docker-compose.prod.yml ps; exit 1; fi
+          if ! echo \"\$PS\" | grep -q \"starting\"; then echo \"All containers healthy\"; exit 0; fi
+          echo \"Waiting for containers to become healthy...\"; sleep 10
+        done'"; then
+        echo "========================================="
+        echo "HEALTH CHECK FAILED - initiating rollback"
+        echo "========================================="
+        ssh awdeploy@${DEPLOY_HOST} "cd ${DEPLOY_PATH} && \
+          if [ -f docker-compose.prod.yml.rollback ]; then
+            cp docker-compose.prod.yml.rollback docker-compose.prod.yml && docker compose -f docker-compose.prod.yml up -d && echo 'Rollback complete - previous version restored'
+          else echo 'WARNING: No rollback target available (first deployment)'; fi"
+        exit 1
+      fi
+      echo "Deployment verified healthy"
+  after_script:
+    - ssh-agent -k 2>/dev/null || true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual

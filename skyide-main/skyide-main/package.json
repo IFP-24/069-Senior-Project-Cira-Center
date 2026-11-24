@@ -1,0 +1,29 @@
+{
+    "name": "skyide",
+    "version": "1.0.0",
+    "description": "SkyIDE - Visual Programming Platform",
+    "private": true,
+    "scripts": {
+        "start": "cd ide-frontend && npm run start",
+        "dev": "cd ide-frontend && npm run start:dev",
+        "ci": "bash run-ci.sh",
+        "install:all": "cd ide-frontend && npm install && cd ../api-backend && pip install -r requirements.txt",
+        "frontend": "cd ide-frontend && npm run dev",
+        "backend": "cd api-backend && source venv/bin/activate && python3 app.py",
+        "build": "cd ide-frontend && npm run build",
+        "setup": "npm run database && npm run tables",
+        "database": "psql -h ${DB_HOST:-127.0.0.1} -p ${DB_PORT:-5432} -U ${DB_USER:-postgres} -d postgres -c \"CREATE DATABASE ${DB_NAME:-skyide};\"",
+        "tables": "psql -h ${DB_HOST:-127.0.0.1} -p ${DB_PORT:-5432} -U ${DB_USER:-postgres} -d ${DB_NAME:-skyide} -f setup.sql"
+    },
+    "keywords": [
+        "visual-programming",
+        "blockly",
+        "python",
+        "education"
+    ],
+    "author": "SkyIDE Team",
+    "license": "MIT",
+    "dependencies": {
+        "resend": "^6.9.2"
+    }
+}

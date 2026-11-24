@@ -1,0 +1,13 @@
+# Keep the backend build context lean and secret-free.
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.env
+.env.*
+!.env.example
+state/*.json
+.git/
+*.log

@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>BlockMirror Bridge</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- 1) Blockly (order matters; keep these four) -->
+    <script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
+    <script src="https://unpkg.com/blockly/blocks_compressed.js"></script>
+    <script src="https://unpkg.com/blockly/python_compressed.js"></script>
+    <script src="https://unpkg.com/blockly/msg/en.js"></script>
+
+    <!-- 2) CodeMirror 5 (editor used by BlockMirror) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/codemirror.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/mode/python/python.min.js"></script>
+
+    <!-- 3) Skulpt (BlockPy fork) — use your local build you copied -->
+    <script src="/lib/skulpt/dist/skulpt.js"></script>
+    <script src="/lib/skulpt/dist/skulpt-stdlib.js"></script>
+
+    <!-- 4) BlockMirror (JS + CSS) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/blockpy-edu/BlockMirror@master/src/css/block_mirror.css" />
+    <script src="https://cdn.jsdelivr.net/gh/blockpy-edu/BlockMirror@master/dist/block_mirror.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/gh/blockpy-edu/BlockMirror@master/dist/block_mirror_python_blocks.js"></script> -->
+
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #0f1115;
+            color: #e7eaf0;
+        }
+
+        #editor {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Darken CM to match your app */
+        .CodeMirror {
+            background: #131722 !important;
+            color: #e7eaf0 !important;
+            height: 100%;
+        }
+
+        .CodeMirror-gutters {
+            background: #0f1320 !important;
+            border-right: 1px solid #20263b !important;
+        }
+
+        .CodeMirror-cursor {
+            border-left: 2px solid #6c8cff !important;
+        }
+
+        .cm-s-default .cm-keyword {
+            color: #b88cff;
+        }
+
+        .cm-s-default .cm-number {
+            color: #6c8cff;
+        }
+
+        .cm-s-default .cm-string {
+            color: #9ad27d;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="editor"></div>
+
+    <script>
+        // Simple, loud guards so you can see exactly what failed.
+        function hardFail(msg) {
+            document.body.innerHTML =
+                '<div style="padding:2em;font-size:16px;line-height:1.6;color:#ff6b6b">' +
+                "<strong>BlockMirror failed to load.</strong><br>" +
+                msg +
+                "<br><br>Open DevTools → Network and Console to see which script 404’d or was blocked." +
+                "</div>"
+            throw new Error(msg)
+        }
+
+        if (!window.Blockly) hardFail("Blockly not found.")
+        if (!window.CodeMirror) hardFail("CodeMirror not found.")
+        if (!window.Sk)
+            hardFail("Skulpt (BlockPy fork) not found at /lib/skulpt/dist/skulpt.js.")
+        if (!window.BlockMirror)
+            hardFail("BlockMirror not found. Check jsDelivr URL or network.")
+
+        // Initialize BlockMirror
+        // Ensure BlockMirror collapses the Blockly pane when hidden.
+        const originalBlockSetMode = BlockMirrorBlockEditor.prototype.setMode
+        BlockMirrorBlockEditor.prototype.setMode = function (mode) {
+            originalBlockSetMode.call(this, mode)
+            if (mode && mode.toLowerCase() === "text") {
+                this.blockContainer.style.width = "0%"
+            }
+        }
+
+        const originalBlockResize = BlockMirrorBlockEditor.prototype.resizeResponsively
+        BlockMirrorBlockEditor.prototype.resizeResponsively = function () {
+            originalBlockResize.call(this)
+            if (this.blockMirror.mode_ === "text") {
+                this.blockContainer.style.width = "0%"
+            }
+        }
+
+        const bm = new BlockMirror({
+            container: document.getElementById("editor"),
+            viewMode: "text", // 'block' | 'text' | 'split'
+            height: "100%",
+            blockDelay: 50,
+            width: "100%"
+        })
+
+        parent.postMessage({ type: "blockmirror-ready" }, "*")
+
+        // Convenience getter for the internal Blockly workspace
+        const ws = () => Blockly.getMainWorkspace()
+
+        // Bridge: handle messages from parent (React app)
+        window.addEventListener("message", evt => {
+            const { type, action, payload, requestId } = evt.data || {}
+            if (type !== "app->bm") return
+
+            const reply = (act, pl = {}) =>
+                parent.postMessage(
+                    { type: "bm->app", action: act, requestId, payload: pl },
+                    "*"
+                )
+
+            try {
+                switch (action) {
+                    case "setPython":
+                        bm.setCode(payload?.code || "")
+                        return reply("ack")
+
+                    case "getPython": {
+                        const code = bm.getCode()
+                        return reply("python", { code })
+                    }
+
+                    case "setBlocks":
+                        Blockly.serialization.workspaces.load(payload?.json, ws())
+                        return reply("ack")
+
+                    case "getBlocks": {
+                        const json = Blockly.serialization.workspaces.save(ws())
+                        return reply("blocks", { json })
+                    }
+
+                    case "setMode":
+                        console.log("BlockMirror: setMode", payload)
+                        bm.setMode(payload?.mode || "block") // 'block' | 'text' | 'split'
+                        return reply("ack")
+
+                    default:
+                        return reply("error", { message: "Unknown action: " + action })
+                }
+            } catch (err) {
+                return reply("error", { message: String((err && err.message) || err) })
+            }
+        })
+    </script>
+
+    <script>
+        // remove empty, spacer-y divs that BlockMirror may leave at the top of #editor
+        function cleanEditorArtifacts() {
+            const root = document.getElementById("editor")
+            if (!root) return
+
+            // 1) direct children that are empty
+            Array.from(root.children).forEach(el => {
+                if (el.tagName !== "DIV") return
+                const noKids = el.childElementCount === 0 && el.textContent.trim() === ""
+                if (noKids) el.remove()
+            })
+
+            // 2) common shims deeper under #editor (still keep CodeMirror)
+            const candidates = root.querySelectorAll("div")
+            candidates.forEach(el => {
+                if (el.closest(".CodeMirror")) return
+                const cs = getComputedStyle(el)
+                const looksLikeSpacer =
+                    el.childElementCount === 0 &&
+                    el.textContent.trim() === "" &&
+                    // narrow, floated gutter-like boxes
+                    ((el.offsetWidth <= 120 && cs.float === "left") ||
+                        // thin dividers
+                        el.offsetWidth <= 2 ||
+                        // the light gray shim seen in your screenshot
+                        cs.backgroundColor === "rgb(221, 221, 221)")
+                if (looksLikeSpacer) el.remove()
+            })
+        }
+
+        // run once right after BlockMirror paints
+        window.addEventListener("load", () => {
+            // run a few frames later to catch first layout
+            requestAnimationFrame(() => requestAnimationFrame(cleanEditorArtifacts))
+        })
+
+        // run after your app tells the iframe to switch to Python mode
+        window.addEventListener("message", e => {
+            if (!e.data) return
+            if (
+                e.data.type === "set-mode" &&
+                (e.data.mode === "python" || e.data.mode === "text")
+            ) {
+                // let BlockMirror finish flipping views, then clean
+                setTimeout(cleanEditorArtifacts, 150)
+            }
+        })
+
+        // optional: keep things tidy if the DOM changes again (toolbox closing, etc.)
+        const editorNode = document.getElementById("editor")
+        if (editorNode) {
+            const mo = new MutationObserver(() => {
+                // debounce a bit so we don't fight layout
+                clearTimeout(window.__bmCleanTimer)
+                window.__bmCleanTimer = setTimeout(cleanEditorArtifacts, 100)
+            })
+            mo.observe(editorNode, { childList: true, subtree: true })
+        }
+    </script>
+</body>
+
+</html>

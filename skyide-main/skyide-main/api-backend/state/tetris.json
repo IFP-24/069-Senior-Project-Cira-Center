@@ -1,0 +1,8 @@
+{
+  "colors": {},
+  "controls": {
+    "rotate": "space"
+  },
+  "tick_ms": 70,
+  "background": "#000000"
+}

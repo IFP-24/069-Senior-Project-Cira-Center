@@ -1,0 +1,73 @@
+# SkyIDE — local Docker bring-up (frontend + backend + Postgres).
+#
+#   docker compose up --build      →  http://localhost:8080
+#
+# This is the LOCAL development stack. The Westphal GitLab repo, CI pipeline, and
+# ct-host deploy (Traefik, public DNS, hardening) are a deliberately separate later
+# phase — see README/notes. Secrets here are throwaway dev values in .env (gitignored).
+
+services:
+  skyide-db:
+    image: postgres:16-alpine
+    container_name: skyide-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: skyide
+      POSTGRES_USER: skyide
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: America/New_York
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs ONCE on first init (empty volume): creates accounts/projects tables.
+      - ./setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skyide -d skyide"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks: [skyide]
+
+  skyide-backend:
+    build: ./api-backend
+    container_name: skyide-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: skyide-db
+      DB_PORT: "5432"
+      DB_NAME: skyide
+      DB_USER: skyide
+      DB_PASSWORD: ${DB_PASSWORD}
+      # app.py uses SECRET_KEY for JWT too when JWT_SECRET_KEY is unset.
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      TZ: America/New_York
+    depends_on:
+      skyide-db:
+        condition: service_healthy
+    # Published only for direct local debugging; real app traffic goes via nginx /api.
+    ports:
+      - "127.0.0.1:5055:5055"
+    networks: [skyide]
+
+  skyide-frontend:
+    build:
+      context: ./ide-frontend
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_API_V1_BASE_URL: /api/v1
+    container_name: skyide-frontend
+    restart: unless-stopped
+    depends_on:
+      skyide-backend:
+        condition: service_started
+    ports:
+      - "8080:80"
+    networks: [skyide]
+
+volumes:
+  pgdata:
+
+networks:
+  skyide:
+    name: skyide

@@ -1,0 +1,189 @@
+/* ide-frontend/src/styles/progress-animations.css */
+
+/* Notification animations */
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutToRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes bounceIn {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Progress bar animations */
+@keyframes progressBarFill {
+    from {
+        width: 0%;
+    }
+    to {
+        width: var(--target-width, 100%);
+    }
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes glow {
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(79, 70, 229, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(79, 70, 229, 0.6);
+    }
+}
+
+/* Status badge animations */
+@keyframes statusPulse {
+    0%,
+    100% {
+        background-color: var(--status-color);
+    }
+    50% {
+        background-color: var(--status-color-light);
+    }
+}
+
+@keyframes countUp {
+    from {
+        transform: scale(0.8);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* Progress overlay animations */
+.progress-overlay-enter {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.progress-overlay-exit {
+    animation: fadeOutDown 0.3s ease-out;
+}
+
+@keyframes fadeOutDown {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+}
+
+/* Notification classes for different types */
+.notification-success {
+    animation: slideInFromRight 0.3s ease-out;
+    border-left-color: #10b981;
+}
+
+.notification-error {
+    animation: bounceIn 0.4s ease-out;
+    border-left-color: #ef4444;
+}
+
+.notification-warning {
+    animation: slideInFromRight 0.3s ease-out;
+    border-left-color: #f59e0b;
+}
+
+.notification-info {
+    animation: slideInFromRight 0.3s ease-out;
+    border-left-color: #3b82f6;
+}
+
+/* Progress states */
+.progress-active {
+    animation: glow 2s infinite;
+}
+
+.progress-complete {
+    animation: countUp 0.3s ease-out;
+}
+
+/* Hover effects */
+.notification:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+}
+
+.status-badge:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .notification {
+        max-width: calc(100vw - 40px);
+    }
+
+    .progress-overlay {
+        padding: 20px;
+    }
+
+    .progress-card {
+        min-width: auto;
+        width: 100%;
+    }
+}

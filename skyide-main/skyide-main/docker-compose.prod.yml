@@ -1,0 +1,90 @@
+# SkyIDE — PRODUCTION stack for aw-svl-ct03 (behind the existing Traefik).
+#
+# Deploy path on host: /opt/docker/skyide/   (delivered + run by CI: see .gitlab-ci.yml `deploy`)
+#   docker compose -f docker-compose.prod.yml pull && up -d
+#
+# Differences from the local docker-compose.yml:
+#   - images come from registry.westphal.drexel.edu (built+pushed by CI), not `build:`
+#   - NO host-published ports — Traefik fronts the app; db/backend never leave the
+#     private `skyide-internal` network
+#   - only skyide-frontend joins the shared external `traefik_gateway`
+#   - secrets (.env) are generated on the host by CI from CI/CD variables, never committed
+#
+# Public TLS terminates at the HAProxy edge (pfSense, ACME) and re-encrypts to ct03's
+# Traefik — there is NO ACME on Traefik here. The router below just needs the hostname.
+
+services:
+  skyide-db:
+    image: postgres:16-alpine  # verified: same image as the verified local stack (skyide-db running healthy)
+    container_name: skyide-db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: skyide
+      POSTGRES_USER: skyide
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: America/New_York
+    volumes:
+      - skyide-pgdata:/var/lib/postgresql/data
+      # Runs ONCE on first init (empty volume): creates accounts/projects tables.
+      - ./setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skyide -d skyide"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks: [skyide-internal]
+
+  skyide-backend:
+    image: registry.westphal.drexel.edu/digital-media/skyide/backend:${IMAGE_TAG:-latest}
+    container_name: skyide-backend
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DB_HOST: skyide-db
+      DB_PORT: "5432"
+      DB_NAME: skyide
+      DB_USER: skyide
+      DB_PASSWORD: ${DB_PASSWORD}
+      # app.py uses SECRET_KEY for JWT too when JWT_SECRET_KEY is unset.
+      SECRET_KEY: ${SECRET_KEY}
+      # Resend transactional email (contact-us). If unset, contact-us degrades only.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # Same-origin /api proxy means CORS isn't exercised, but set it to the public URLs.
+      CORS_ORIGINS: https://skyscrapergames.org,https://www.skyscrapergames.org,https://skyscrapergames.com,https://www.skyscrapergames.com
+      TZ: America/New_York
+    depends_on:
+      skyide-db:
+        condition: service_healthy
+    networks: [skyide-internal]   # NOT on traefik_gateway — never publicly reachable
+
+  skyide-frontend:
+    image: registry.westphal.drexel.edu/digital-media/skyide/frontend:${IMAGE_TAG:-latest}
+    container_name: skyide-frontend
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      skyide-backend:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_gateway"
+      - "traefik.http.routers.skyide.rule=Host(`skyscrapergames.org`) || Host(`www.skyscrapergames.org`) || Host(`skyscrapergames.com`) || Host(`www.skyscrapergames.com`)"
+      - "traefik.http.routers.skyide.entrypoints=websecure"
+      - "traefik.http.routers.skyide.tls=true"
+      - "traefik.http.services.skyide.loadbalancer.server.port=80"
+    networks: [skyide-internal, traefik_gateway]
+
+volumes:
+  skyide-pgdata:
+
+networks:
+  skyide-internal:
+    name: skyide-internal
+  # Shared reverse-proxy network owned by the ct03 traefik stack.
+  traefik_gateway:
+    external: true

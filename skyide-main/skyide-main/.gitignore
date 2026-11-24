@@ -1,0 +1,124 @@
+# Node.js dependencies
+node_modules/
+
+# Python dependencies and environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+
+# AWS EC2 key pair
+sky-ide-ec2.pem
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+*.pem
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE/editor settings
+.vscode/
+*.swp
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Coverage reports
+coverage/
+*.cover
+
+# Misc
+*.bak
+*.tmp
+
+# npm debug log
+npm-debug.log*
+
+# Yarn dependencies and logs
+yarn.lock
+yarn-error.log
+
+# Mac system files
+.AppleDouble
+.LSOverride
+
+# Windows system files
+Desktop.ini
+
+# SASS/SCSS cache
+.sass-cache/
+
+# TypeScript build output
+*.tsbuildinfo
+
+# IDE specific
+.idea/
+*.iml
+
+# Test output
+test-output/
+
+# Development databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Test and debug HTML files
+*_test.html
+*_debug.html
+*_demo.html
+
+# Empty shell scripts
+setup.sh
+start.sh
+start.bat
+debug-test.js
+
+# Documentation drafts and temporary files
+*_DRAFT.md
+*_TEMP.md
+*_OLD.md
+
+# Prevent specific empty documentation patterns
+VALIDATION_CHECKLIST.md
+*_COMPLETE.md
+*_IMPLEMENTATION.md
+*_BUTTONS.md
+*_FIX.md
+*_GUIDE.md
+
+# Personal documentation (not for public repository)
+PERSONAL_PORTFOLIO.md
+TESTING.md
+PERSONAL_*.md
+*_INTERVIEW_PREP.md
+*_RESUME_NOTES.md
+*_PORTFOLIO.md
+PR_DESCRIPTION.md
+
+# Vim/Editor temporary files
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# macOS specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE temporary files
+.vscode/settings.json
+*.code-workspace

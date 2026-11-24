@@ -1,0 +1,175 @@
+:root {
+    --bg: #0f1115;
+    --panel: #151821;
+    --panel-2: #1a1f2b;
+    --border: #23283a;
+    --text: #e7eaf0;
+    --muted: #9aa3b2;
+    --accent: #6c8cff;
+    --accent-2: #9c6cff;
+    --btn: #1e2433;
+    --btn-hover: #232b3d;
+    --radius: 12px;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* outer grid (Editor wraps with this) */
+.ide-grid {
+    display: grid;
+    grid-template-columns: 1fr min(44vw, 760px);
+    gap: 0;
+    height: calc(100vh - 48px); /* adjust for your top bar height */
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* Dock */
+.bm-dock {
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+}
+
+/* Card around the dock content */
+.bm-card {
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+/* Toolbar */
+.bm-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(6px);
+}
+
+/* Segmented control */
+.seg {
+    display: inline-flex;
+    background: var(--btn);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+}
+.seg input {
+    display: none;
+}
+.seg label {
+    cursor: pointer;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--muted);
+    border-radius: 999px;
+    transition: all 0.15s ease;
+}
+.seg input:checked + label {
+    background: var(--accent);
+    color: #0e1322;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+/* Buttons */
+.bm-btn {
+    background: var(--btn);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1;
+    transition: all 0.12s ease;
+}
+.bm-btn:hover {
+    background: var(--btn-hover);
+}
+.bm-btn.primary {
+    background: var(--accent);
+    color: #0e1322;
+    border-color: transparent;
+}
+.bm-btn.secondary {
+    background: var(--accent-2);
+    color: #0e1322;
+    border-color: transparent;
+}
+
+/* Split area */
+.bm-split {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 0;
+    min-height: 0;
+}
+
+/* Python textarea side */
+.bm-left {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+}
+.bm-left .label {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 12px 4px;
+}
+.bm-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    padding: 12px;
+    border: 0;
+    outline: 0;
+    resize: none;
+    background: #131722;
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace;
+    font-size: 13px;
+}
+
+/* Iframe side */
+.bm-right {
+    min-width: 0;
+    min-height: 0;
+    background: var(--panel-2);
+}
+.bm-iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.bm-iframe-container {
+    flex: 1;
+    min-height: 0;
+    background: var(--panel-2);
+    display: flex;
+}
+
+/* “show dock” chip */
+.bm-showchip {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: var(--btn);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
